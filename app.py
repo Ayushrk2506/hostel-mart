@@ -22,7 +22,9 @@ UPI_ID = "9019531019@ybl"
 
 # --- DB Connection ---
 def get_db_connection():
-    conn = sqlite3.connect('database.db')
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    db_path = os.path.join(base_dir, 'database.db')
+    conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     return conn
 def save_password_for_email(email, password):
