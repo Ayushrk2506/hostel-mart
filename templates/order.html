@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Order Details - Hostel Mart</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='neon.css') }}">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #fff;
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #0ff;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+      margin-bottom: 30px;
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 10px 15px;
+      background-color: #0ff;
+      color: #000;
+      text-decoration: none;
+      border-radius: 10px;
+      box-shadow: 0 0 12px #0ff;
+      font-weight: bold;
+      transition: 0.3s ease;
+    }
+
+    .back-btn:hover {
+      background-color: #fff;
+      color: #000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 50px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 18px rgba(0,255,255,0.3);
+    }
+
+    th, td {
+      border: 1px solid rgba(0,255,255,0.3);
+      padding: 12px 16px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: rgba(0, 255, 255, 0.15);
+      color: #0ff;
+      text-shadow: 0 0 8px #0ff;
+    }
+
+    td ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    td form {
+      display: inline;
+    }
+
+    select {
+      padding: 6px;
+      background-color: #111;
+      color: #0ff;
+      border: 1px solid #0ff;
+      border-radius: 6px;
+      box-shadow: 0 0 8px #0ff;
+    }
+
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 10px #0ff;
+    }
+
+    .btn-danger {
+      background-color: #f55;
+      border: none;
+      padding: 5px 8px;
+      color: white;
+      cursor: pointer;
+      border-radius: 6px;
+      box-shadow: 0 0 8px #f55;
+      font-weight: bold;
+    }
+
+    .btn-danger:hover {
+      background-color: #c00;
+      box-shadow: 0 0 12px #f55;
+    }
+
+    ul.messages {
+      list-style: none;
+      padding: 0;
+      margin-bottom: 20px;
+    }
+
+    ul.messages li {
+      padding: 10px 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px;
+    }
+
+    ul.messages li.success {
+      background-color: rgba(0, 255, 0, 0.15);
+      border: 1px solid #0f0;
+      color: #0f0;
+      box-shadow: 0 0 10px #0f0;
+    }
+
+    ul.messages li.error {
+      background-color: rgba(255, 0, 0, 0.15);
+      border: 1px solid #f55;
+      color: #f55;
+      box-shadow: 0 0 10px #f55;
+    }
+
+    ul.messages li.info {
+      background-color: rgba(0, 255, 255, 0.15);
+      border: 1px solid #0ff;
+      color: #0ff;
+      box-shadow: 0 0 10px #0ff;
+    }
+  </style>
+</head>
+<body>
+
+  <a href="{{ url_for('admin_dashboard') }}" class="back-btn">← Back to Admin</a>
+  <h1>📦 All Orders</h1>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="messages">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <table>
+    <thead>
+      <tr>
+        <th>Order Code</th>
+        <th>Name</th>
+        <th>Mobile</th>
+        <th>Email</th>
+        <th>Room</th>
+        <th>Payment</th>
+        <th>Status</th>
+        <th>Items</th>
+        <th>Total (₹)</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td>{{ order["order_code"] }}</td>
+        <td>{{ order["name"] }}</td>
+        <td>{{ order["mobile"] }}</td>
+        <td>{{ order["email"] }}</td>
+        <td>{{ order["room"] }}</td>
+        <td>{{ order["payment"] }}</td>
+        <td>
+          <form action="{{ url_for('update_order_status') }}" method="POST">
+            <input type="hidden" name="order_id" value="{{ order['id'] }}">
+            <select name="status" onchange="this.form.submit()">
+              <option value="Pending" {% if order["status"] == "Pending" %}selected{% endif %}>Pending</option>
+              <option value="Confirmed" {% if order["status"] == "Confirmed" %}selected{% endif %}>Confirmed</option>
+              <option value="Delivered" {% if order["status"] == "Delivered" %}selected{% endif %}>Delivered</option>
+              <option value="Cancelled" {% if order["status"] == "Cancelled" %}selected{% endif %}>Cancelled</option>
+            </select>
+          </form>
+        </td>
+        <td>
+          <ul>
+            {% for item in order["items"] %}
+            <li>{{ item["quantity"] }} × {{ item["name"] }} — ₹{{ item["quantity"] * (item["price"] if item["price"] else 0) }}</li>
+            {% endfor %}
+          </ul>
+        </td>
+        <td>{{ order["total"] }}</td>
+        <td>
+          <form action="{{ url_for('delete_order', order_id=order['id']) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this order?');">
+            <button class="btn-danger">🗑️</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</body>
+</html>

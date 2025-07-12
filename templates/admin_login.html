@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login – Hostel Mart</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #10002b, #1a1a40, #0f0c29);
+            background-size: 400% 400%;
+            animation: bgMove 10s ease infinite;
+            padding: 30px;
+            color: #ffffff;
+        }
+
+        @keyframes bgMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 25px;
+            color: #00ffff;
+            text-shadow: 0 0 8px #00ffffaa, 0 0 20px #007bffc0;
+        }
+
+        form {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 25px;
+            width: 350px;
+            margin: auto;
+            border-radius: 16px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #00ffffaa;
+            color: #ffffff;
+            border-radius: 8px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        input::placeholder {
+            color: #cccccc;
+        }
+
+        button {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: #00ffff;
+            color: #000000;
+            border: none;
+            font-weight: bold;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 0 15px #00ffffaa, 0 0 30px #00ffff88;
+        }
+
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 25px #00ffffcc, 0 0 50px #00ffff99;
+        }
+
+        .error-msg {
+            color: #ff4d4d;
+            font-weight: bold;
+            margin-top: 15px;
+            text-align: center;
+            text-shadow: 0 0 6px #ff4d4d88;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🔐 Admin Login</h2>
+
+<form method="POST" action="/admin">
+    <input type="password" name="pin" placeholder="Enter Admin PIN" required>
+    <button type="submit">Login</button>
+
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="error-msg">{{ messages[0] }}</div>
+      {% endif %}
+    {% endwith %}
+</form>
+
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirm Your Order – Hostel Mart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='neon.css') }}">
+    <style>
+        form {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 25px;
+            max-width: 650px;
+            margin: auto;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0,255,255,0.3);
+            color: #fff;
+        }
+        h2 {
+            text-align: center;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff;
+            margin-bottom: 20px;
+        }
+        input[type="text"], input[type="tel"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            background: #111;
+            border: 1px solid #0ff;
+            border-radius: 8px;
+            color: #0ff;
+            font-weight: bold;
+            box-shadow: 0 0 10px #0ff inset;
+        }
+        .payment-options {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+        }
+        .payment-options label {
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            color: #0ff;
+        }
+        .payment-options input[type="radio"] {
+            margin-right: 8px;
+        }
+        table {
+            width: 100%;
+            margin-top: 10px;
+            border-collapse: collapse;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            border: 1px solid #0ff;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background: rgba(0, 255, 255, 0.1);
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+        }
+        td {
+            color: #fff;
+        }
+        .totals {
+            font-weight: bold;
+            background: rgba(0,255,255,0.08);
+            color: #0ff;
+        }
+        .btn-submit {
+            background: #0ff;
+            color: #000;
+            border: none;
+            padding: 14px;
+            width: 100%;
+            font-size: 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 25px;
+            box-shadow: 0 0 15px #0ff;
+            transition: all 0.3s ease;
+        }
+        .btn-submit:hover {
+            background: #fff;
+            color: #000;
+        }
+        #cod-charge-row {
+            display: none;
+        }
+        .btn {
+            display: block;
+            margin-top: 15px;
+            text-align: center;
+            padding: 12px;
+            background: transparent;
+            color: #0ff;
+            border: 1.5px solid #0ff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px #0ff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background: #0ff;
+            color: #000;
+        }
+    </style>
+    <script>
+        function toggleCharges() {
+            const payment = document.querySelector('input[name="payment"]:checked').value;
+            const totalOffer = parseFloat(document.getElementById('total-offer-data').dataset.total);
+            let extra = 0;
+
+            if (payment === 'cod') {
+                extra = totalOffer <= 50 ? 5 : Math.ceil(totalOffer * 0.10);
+                document.getElementById("cod-charge-row").style.display = "table-row";
+                document.getElementById("cod-charge-value").innerText = "₹" + extra;
+                document.getElementById("final-amount").innerText = "₹" + Math.ceil(totalOffer + extra);
+            } else {
+                document.getElementById("cod-charge-row").style.display = "none";
+                document.getElementById("final-amount").innerText = "₹" + Math.ceil(totalOffer);
+            }
+        }
+
+        window.onload = function () {
+            toggleCharges();
+            document.querySelectorAll('input[name="payment"]').forEach(input => {
+                input.addEventListener('change', toggleCharges);
+            });
+        };
+    </script>
+</head>
+<body class="neon-bg">
+
+    <form method="POST">
+        <h2>📦 Confirm Your Order</h2>
+
+        <input type="text" name="name" placeholder="Your Name" required>
+        <input type="text" name="room" placeholder="Room No." required>
+        <input type="tel" name="mobile" placeholder="Mobile No." pattern="[0-9]{10}" required>
+
+        <div class="payment-options">
+            <label><input type="radio" name="payment" value="cod" checked>Cash on Delivery</label>
+            <label><input type="radio" name="payment" value="prepaid">Pay Now (UPI)</label>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in cart_details %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.qty }}</td>
+                    <td>₹{{ item.offer_price }}</td>
+                    <td>₹{{ item.subtotal }}</td>
+                </tr>
+                {% endfor %}
+
+                <tr id="cod-charge-row">
+                    <td colspan="3">Cash Handling Charges</td>
+                    <td id="cod-charge-value">₹0</td>
+                </tr>
+
+                <tr class="totals">
+                    <td colspan="3">Total Payable</td>
+                    <td id="final-amount">₹{{ total_offer }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- Hidden total for JS -->
+        <div id="total-offer-data" data-total="{{ total_offer }}" style="display:none;"></div>
+
+        <button type="submit" class="btn-submit">✅ Place Order</button>
+        <a href="/cart" class="btn">← Back to Cart</a>
+    </form>
+
+</body>
+</html>

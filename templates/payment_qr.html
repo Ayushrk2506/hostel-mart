@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment via UPI – Hostel Mart</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='neon.css') }}">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            background-size: 400% 400%;
+            animation: shift 15s ease infinite;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white;
+            margin: 0;
+            padding: 40px;
+            text-align: center;
+        }
+
+        @keyframes shift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .qr-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 35px;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        img {
+            width: 240px;
+            height: 240px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 18px #00ffff33;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #00ffff;
+            text-shadow: 0 0 12px #00ffffaa;
+        }
+
+        .timer {
+            font-size: 18px;
+            margin-top: 12px;
+            font-weight: bold;
+            color: #ff6666;
+            text-shadow: 0 0 6px #ff666655;
+        }
+
+        .note, .note1 {
+            margin-top: 16px;
+            font-size: 14px;
+            color: #ccc;
+        }
+
+        .note1 {
+            color: #ff4d4d;
+            font-weight: bold;
+        }
+
+        .summary {
+            margin-top: 20px;
+            text-align: left;
+            background: rgba(255,255,255,0.05);
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 12px #00ffff22;
+        }
+
+        .summary h3 {
+            margin-bottom: 12px;
+            color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc99;
+        }
+
+        .summary ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .summary li {
+            padding: 5px 0;
+        }
+
+        .summary strong {
+            display: block;
+            margin-top: 12px;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            background-color: #00bfff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 12px #00bfffaa;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        a:hover {
+            background-color: #00ffff;
+            box-shadow: 0 0 18px #00ffffaa;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="qr-box">
+        <h2>🔍 Scan to Pay</h2>
+        <img src="{{ url_for('static', filename=qr_file) }}" alt="UPI QR Code">
+        <p><strong>Total Amount:</strong> ₹{{ amount }}</p>
+
+        <div class="timer">
+            QR expires in <span id="countdown">5:00</span>
+        </div>
+
+        <p class="note">📌 Mention <strong>Tracking ID ({{ order_code }})</strong> in your transaction description.</p>
+        <p class="note1">📌 Verify that the payment is done to <strong>Ayush R Kallingal</strong> before paying. Stay safe from cyber frauds!!</p>
+
+        <div class="summary">
+            <h3>🧾 Order Summary</h3>
+            <ul>
+                {% for item in summary["items"] %}
+                    <li>{{ item.name }} × {{ item.qty }} = ₹{{ item.subtotal }}</li>
+                {% endfor %}
+            </ul>
+            <strong>Total: ₹{{ summary.final_amount }}</strong>
+        </div>
+
+        <a href="/shop">🏠 Back to Home</a><br><br>
+        <a href="{{ url_for('regenerate_qr') }}?order_code={{ order_code }}">🔁 Regenerate QR Code</a>
+    </div>
+
+    <script>
+        let timeLeft = 300;  // 5 minutes in seconds
+        const countdown = document.getElementById('countdown');
+
+        function updateTimer() {
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            countdown.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            if (timeLeft > 0) {
+                timeLeft--;
+                setTimeout(updateTimer, 1000);
+            } else {
+                countdown.textContent = "Expired";
+            }
+        }
+
+        updateTimer();
+    </script>
+
+</body>
+</html>

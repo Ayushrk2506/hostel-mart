@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard – Hostel Mart</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f051d, #180c3f, #0d1a40);
+            background-size: 300% 300%;
+            animation: bgShift 10s ease infinite;
+            color: white;
+            padding: 50px;
+            text-align: center;
+            overflow-x: hidden;
+        }
+
+        @keyframes bgShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h1 {
+            margin-bottom: 40px;
+            font-size: 32px;
+            text-shadow: 0 0 10px #7f00ff, 0 0 20px #7f00ff;
+        }
+
+        .button-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 30px;
+            padding: 30px;
+            backdrop-filter: blur(14px);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .admin-btn {
+            padding: 20px 40px;
+            font-size: 18px;
+            background: #0d0d26;
+            color: #00ffff;
+            border: 1px solid #00ffff;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.3s;
+            box-shadow: 0 0 15px #00ffff88, 0 0 30px #007bff55;
+        }
+
+        .admin-btn:hover {
+            background: #00ffff;
+            color: #0d0d26;
+            box-shadow: 0 0 20px #00ffffcc, 0 0 50px #00ffffcc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🛠️ Hostel Mart Admin Dashboard</h1>
+
+    <div class="button-container">
+        <a href="/inventory" class="admin-btn">📦 Inventory Management</a>
+        <a href="/add_item" class="admin-btn">➕ Add New Item</a>
+        <a href="/orders" class="admin-btn">📋 Order Details</a>
+        <a href="/customers_info" class="admin-btn">👤 Customer Information</a>
+    </div>
+
+</body>
+</html>

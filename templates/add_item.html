@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Add New Item</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      color: #f8f9fa;
+      padding: 30px;
+      margin: 0;
+      backdrop-filter: blur(4px);
+    }
+
+    h2 {
+      text-align: center;
+      color: #66fcf1;
+      text-shadow: 0 0 10px #66fcf1;
+    }
+
+    .back-button {
+      padding: 10px 20px;
+      background: #00bfff;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 12px #00bfff;
+      margin-bottom: 20px;
+    }
+
+    .back-button:hover {
+      background: #009acd;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      backdrop-filter: blur(8px);
+    }
+
+    th, td {
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-align: center;
+      color: #e0e0e0;
+    }
+
+    th {
+      background: rgba(255, 255, 255, 0.1);
+      color: #81ecec;
+      text-shadow: 0 0 5px #81ecec;
+    }
+
+    input[type="text"], textarea, input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      backdrop-filter: blur(4px);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+      overflow: auto;
+    }
+
+    .number-field-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .number-field-container input[type="number"] {
+      width: 60px;
+      padding: 6px;
+      border: none;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-radius: 6px;
+    }
+
+    .number-field-container button {
+      padding: 6px 10px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #1e90ff;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 0 8px #1e90ff;
+      transition: 0.3s;
+    }
+
+    .number-field-container button:hover {
+      background: #0b78e3;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      background: #00ffcc;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00ffcc;
+      font-size: 16px;
+    }
+
+    .btn:hover {
+      background: #00e6b8;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    li {
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+  </style>
+
+  <script>
+    function increment(id) {
+      const input = document.getElementById(id);
+      input.step = "1";
+      input.value = parseInt(input.value || "0") + 1;
+    }
+
+    function decrement(id) {
+      const input = document.getElementById(id);
+      input.step = "1";
+      const current = parseInt(input.value || "0");
+      if (current > 0) input.value = current - 1;
+    }
+  </script>
+</head>
+<body>
+
+  <button type="button" onclick="window.location.href='{{ url_for('admin_dashboard') }}'" class="back-button">← Back to Admin</button>
+
+  <h2>➕ Add New Product</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, message in messages %}
+          <li style="color: {{ 'lime' if category == 'success' else 'red' }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('add_item') }}" enctype="multipart/form-data">
+    <table>
+      <thead>
+        <tr>
+          <th>Image</th>
+          <th>Name</th>
+          <th>Description</th>
+          <th>MRP (₹)</th>
+          <th>Offer Price (₹)</th>
+          <th>Quantity</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="file" name="image" accept="image/*" required></td>
+          <td><input type="text" name="name" required></td>
+          <td>
+            <textarea name="description" oninput="this.style.height='auto'; this.style.height=this.scrollHeight + 'px';" required></textarea>
+          </td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('mrp')">−</button>
+              <input type="number" name="mrp" id="mrp" min="0" required>
+              <button type="button" onclick="increment('mrp')">+</button>
+            </div>
+          </td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('offer_price')">−</button>
+              <input type="number" name="offer_price" id="offer_price" min="0" required>
+              <button type="button" onclick="increment('offer_price')">+</button>
+            </div>
+          </td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('quantity')">−</button>
+              <input type="number" name="quantity" id="quantity" min="0" required>
+              <button type="button" onclick="increment('quantity')">+</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="text-align: center; margin-top: 25px;">
+      <button type="submit" class="btn">✔️ Add Item</button>
+    </div>
+  </form>
+
+</body>
+</html>

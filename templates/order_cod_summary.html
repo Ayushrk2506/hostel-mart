@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Order Summary – Hostel Mart</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      padding: 40px;
+      color: #0ff;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: auto;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0,255,255,0.25);
+    }
+
+    h2, h3 {
+      text-align: center;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 12px #0ff;
+    }
+
+    p {
+      text-align: center;
+      margin: 8px 0 20px;
+      font-size: 1.05em;
+      color: #fff;
+    }
+
+    strong {
+      color: #0ff;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(0,255,255,0.1);
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid #0ff;
+      text-align: center;
+    }
+
+    th {
+      background: rgba(0, 255, 255, 0.1);
+      color: #0ff;
+      text-shadow: 0 0 6px #0ff;
+    }
+
+    .total-row {
+      font-weight: bold;
+      background: rgba(0, 255, 200, 0.1);
+      color: #0ff;
+      text-shadow: 0 0 6px #0ff;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 25px;
+      background: #0ff;
+      color: #000;
+      text-decoration: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 0 12px #0ff;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #fff;
+      color: #000;
+    }
+
+    @media (max-width: 600px) {
+      .container {
+        padding: 20px;
+      }
+
+      th, td {
+        font-size: 14px;
+        padding: 8px;
+      }
+
+      .btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>✅ Order placed successfully!</h2>
+    <p><strong>Your Order ID:</strong> {{ order_code }}</p>
+    <p><strong>Pay ₹{{ final_amount }} upon delivery.</strong></p>
+
+        <h3>Order Summary:</h3>
+    <table>
+        <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Subtotal</th>
+        </tr>
+        {% for item in cart_details %}
+        <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.qty }}</td>
+            <td>₹{{ item.offer_price }}</td>
+            <td>₹{{ item.subtotal }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+            <td colspan="3">Cash Handling Charges</td>
+            <td>₹{{ delivery_charge }}</td>
+        </tr>
+        <tr class="total-row">
+            <td colspan="3">Total Bill</td>
+            <td>₹{{ final_amount }}</td>
+        </tr>
+    </table>
+
+    <div style="text-align: center;">
+      <a href="/shop" class="btn">⬅ Back to Home</a>
+    </div>
+  </div>
+</body>
+</html>

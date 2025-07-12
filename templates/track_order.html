@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Track Your Order – Hostel Mart</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='neon.css') }}">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      background-size: 400% 400%;
+      animation: shift 15s ease infinite;
+      color: white;
+      margin: 0;
+      padding: 30px;
+    }
+
+    @keyframes shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .container {
+      max-width: 850px;
+      margin: auto;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      padding: 30px;
+      border-radius: 14px;
+      box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+
+    h2, h3 {
+      text-align: center;
+      color: #00ffff;
+      text-shadow: 0 0 12px #00ffffaa;
+    }
+
+    .form-track {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    input[type="text"] {
+      padding: 12px;
+      width: 270px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.07);
+      color: white;
+    }
+
+    input::placeholder {
+      color: #ccc;
+    }
+
+    button {
+      padding: 12px 20px;
+      background: #00bfff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-left: 10px;
+      box-shadow: 0 0 10px #00bfffaa;
+    }
+
+    button:hover {
+      background: #00ffff;
+      box-shadow: 0 0 18px #00ffffaa;
+    }
+
+    .order-info p {
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      color: white;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border: 1px solid rgba(0, 255, 255, 0.2);
+    }
+
+    th {
+      background: rgba(0, 255, 255, 0.15);
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 10px 20px;
+      background: #ff0055;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 0 12px #ff0055aa;
+    }
+
+    .back-btn:hover {
+      background: #ff3399;
+      box-shadow: 0 0 18px #ff3399aa;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <h2>📦 Track Your Order</h2>
+
+    <div class="form-track">
+      <form method="POST">
+        <input type="text" name="order_code" placeholder="Enter your Order ID"
+               value="{{ request.form.order_code or request.args.order_code or '' }}">
+        <button type="submit">Track</button>
+      </form>
+    </div>
+
+    {% if order %}
+      <div class="order-info">
+        <p><strong>Order ID:</strong> {{ order.order_code }}</p>
+        <p><strong>Name:</strong> {{ order.name }}</p>
+        <p><strong>Room:</strong> {{ order.room }}</p>
+        <p><strong>Mobile:</strong> {{ order.mobile }}</p>
+        <p><strong>Payment:</strong> {{ order.payment }}</p>
+        <p><strong>Status:</strong> {{ order.status }}</p>
+        <p><strong>Placed On:</strong> {{ order.order_time }}</p>
+      </div>
+
+      <h3>🧾 Order Items</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Price (₹)</th>
+            <th>Subtotal (₹)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set ns = namespace(total=0) %}
+          {% for item in items %}
+            {% set qty = item.quantity|int %}
+            {% set price = item.price|float %}
+            {% set subtotal = qty * price %}
+            {% set ns.total = ns.total + subtotal %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ qty }}</td>
+              <td>{{ price }}</td>
+              <td>{{ subtotal }}</td>
+            </tr>
+          {% endfor %}
+          <tr>
+            <td colspan="3"><strong>Total</strong></td>
+            <td><strong>₹{{ ns.total }}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    {% endif %}
+
+    <div style="text-align:center;">
+      <a href="/profile" class="back-btn">← Back to Profile</a>
+    </div>
+  </div>
+
+</body>
+</html>

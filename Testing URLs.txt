@@ -1,0 +1,28 @@
+🌐 Homepage:
+http://127.0.0.1:5000/
+
+🛒 Order Page:
+http://127.0.0.1:5000/order
+
+🔐 Admin Login:
+http://127.0.0.1:5000/admin 
+pin 6388
+
+✅ After Successful Admin Login (Dashboard):
+http://127.0.0.1:5000/admin → (auto-redirected to orders table)
+
+🧠 Notes:
+- These URLs only work when the Flask app is running (use: python app.py)
+- If you close the terminal or stop Flask, the links won’t work
+- Do NOT double-click .html files – always open these in the browser manually
+
+
+/static/uploads/munch_maxx.jpg
+/static/uploads/dark_fantasy.jpg
+/static/uploads/bingo_mad_angles.jpg
+/static/uploads/pepsi_can.jpg
+/static/uploads/lays_masala.jpg
+
+password: obfk mlsm vkyr tuop
+
+prompt: 1. in this section those items will be present which are already added to the inventory, in this page, the items must be placed in row wise and their respective details must be shown next to them and here, i must have increment/decrement buttons next to each numerical values, there will be columns like  

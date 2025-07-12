@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Cart – Hostel Mart</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #1f1c2c, #24243e);
+            background-size: 400% 400%;
+            animation: gradientMove 12s ease infinite;
+            margin: 0;
+            padding: 30px;
+            color: #ffffff;
+        }
+
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 28px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffffcc, 0 0 20px #0099ff88;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(8px);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.15);
+        }
+
+        th, td {
+            padding: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            text-align: center;
+            color: #ffffff;
+        }
+
+        th {
+            background-color: rgba(0, 255, 255, 0.1);
+            color: #00ffff;
+            text-shadow: 0 0 8px #00ffffaa;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .summary {
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.2);
+            text-align: center;
+            color: #ffffff;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: #00ffff;
+            color: #000;
+            font-weight: bold;
+            border-radius: 8px;
+            text-decoration: none;
+            margin: 10px 10px 0;
+            transition: 0.3s;
+            box-shadow: 0 0 15px #00ffff88, 0 0 30px #00ffff55;
+        }
+
+        .btn:hover {
+            background: #00e0ff;
+            box-shadow: 0 0 30px #00ffffcc;
+        }
+
+        img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.15);
+        }
+
+        .qty-btn {
+            padding: 6px 10px;
+            margin: 0 4px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 0 10px #007bff80;
+        }
+
+        .qty-btn:hover {
+            background-color: #009dff;
+            box-shadow: 0 0 15px #00bfff;
+        }
+
+        .qty {
+            font-weight: bold;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🧺 Your Cart</h2>
+
+<table>
+    <tr>
+        <th>Image</th>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>MRP</th>
+        <th>Offer Price</th>
+        <th>Subtotal</th>
+    </tr>
+    {% for item in cart_details %}
+    <tr>
+        <td><img src="{{ url_for('static', filename=item.image) }}" alt="img"></td>
+        <td>{{ item.name }}</td>
+        <td>
+            <form action="/update_cart_quantity" method="POST" style="display:inline;">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <button type="submit" name="action" value="decrement" class="qty-btn">−</button>
+                <span class="qty">{{ item.qty }}</span>
+                <button type="submit" name="action" value="increment" class="qty-btn">+</button>
+            </form>
+        </td>
+        <td>₹{{ item.mrp }}</td>
+        <td>₹{{ item.offer_price }}</td>
+        <td>₹{{ item.subtotal }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<div class="summary">
+    <p><strong>Total (Offer Price): ₹{{ total_offer }}</strong></p>
+    <p>You saved ₹{{ savings }} today!</p>
+
+    <a href="/order" class="btn">Proceed to Order</a>
+    <a href="/shop" class="btn" style="background:#1e1e1e; color:#fff; box-shadow: 0 0 10px #aaa;">← Back to Shopping</a>
+</div>
+
+</body>
+</html>

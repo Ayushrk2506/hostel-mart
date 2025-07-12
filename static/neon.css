@@ -1,0 +1,141 @@
+/* === Neon Night Theme for Hostel Mart === */
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  color: #f1f1f1;
+  background-size: 400% 400%;
+  animation: gradientBG 20s ease infinite;
+}
+
+/* Glowing heading */
+h1, h2, h3, h4 {
+  text-align: center;
+  color: #00ffff;
+  text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff;
+  margin-bottom: 20px;
+}
+
+/* Frosted glass container */
+.container, .box, form, .summary, table {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 20px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+/* Glowing buttons */
+button, .btn, .admin-btn, a.button {
+  background: #00bfff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: bold;
+  text-decoration: none;
+  display: inline-block;
+  transition: 0.3s;
+  cursor: pointer;
+  box-shadow: 0 0 8px #00bfff, 0 0 12px #00bfff;
+}
+
+button:hover, .btn:hover, .admin-btn:hover, a.button:hover {
+  background: #00ffff;
+  box-shadow: 0 0 12px #00ffff, 0 0 20px #00ffff;
+}
+
+/* Inputs */
+input[type="text"], input[type="password"], input[type="email"], input[type="number"] {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+/* Table styles */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  overflow: hidden;
+  color: #fff;
+}
+
+th, td {
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.2);
+  text-align: center;
+}
+
+th {
+  background: #00bfff;
+  color: #000;
+  text-shadow: none;
+}
+
+/* Flash messages */
+.flash, .error, .error-msg {
+  background: rgba(255, 0, 0, 0.15);
+  border: 1px solid #ff4c4c;
+  color: #ffdddd;
+  padding: 10px;
+  border-radius: 6px;
+  margin-top: 10px;
+  text-align: center;
+  box-shadow: 0 0 5px #ff4c4c;
+}
+
+/* Animating gradient */
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Custom glowing quantity controls */
+.qty-btn {
+  background: #ff00ff;
+  box-shadow: 0 0 10px #ff00ff;
+}
+
+.qty-btn:hover {
+  background: #ff66ff;
+  box-shadow: 0 0 14px #ff66ff;
+}
+
+/* Links in general */
+a {
+  color: #00ffff;
+  text-decoration: none;
+}
+
+a:hover {
+  text-shadow: 0 0 6px #00ffff;
+}
+
+/* Small utility classes */
+.center {
+  text-align: center;
+}
+
+.glow-box {
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+}
+
+/* Button: danger */
+.delete-btn {
+  background: #ff3b3b;
+  box-shadow: 0 0 10px #ff3b3b;
+}
+
+.delete-btn:hover {
+  background: #ff5c5c;
+  box-shadow: 0 0 15px #ff5c5c;
+}

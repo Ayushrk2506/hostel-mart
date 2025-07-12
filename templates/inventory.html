@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      background-attachment: fixed;
+      color: #fff;
+      padding: 20px;
+      margin: 0;
+    }
+
+    h2 {
+      text-align: center;
+      color: #0ff;
+      font-family: 'Orbitron', sans-serif;
+      text-shadow: 0 0 10px #0ff;
+    }
+
+    .back-button {
+      padding: 10px 18px;
+      background: #0ff;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      box-shadow: 0 0 15px #0ff;
+    }
+
+    .back-button:hover {
+      background: #fff;
+      color: #000;
+    }
+
+    form {
+      margin-top: 20px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0,255,255,0.2);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+      vertical-align: top;
+    }
+
+    th {
+      background-color: #0ff;
+      color: #000;
+      text-shadow: none;
+    }
+
+    td {
+      color: #fff;
+    }
+
+    input[type="text"], textarea, input[type="number"] {
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      border: 1px solid #0ff;
+      border-radius: 6px;
+      padding: 6px;
+      width: 100%;
+      box-sizing: border-box;
+      box-shadow: 0 0 8px #0ff;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .number-field-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .number-field-container input {
+      width: 60px;
+      text-align: center;
+    }
+
+    .number-field-container button {
+      padding: 4px 10px;
+      font-size: 18px;
+      margin: 0 4px;
+      background-color: #0ff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #000;
+      box-shadow: 0 0 10px #0ff;
+    }
+
+    .number-field-container button:hover {
+      background-color: #fff;
+      color: #000;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background: #00ffaa;
+      color: #000;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      box-shadow: 0 0 15px #00ffaa;
+    }
+
+    .btn:hover {
+      background: #fff;
+    }
+
+    .delete-btn {
+      background-color: #f55;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 0 10px #f55;
+    }
+
+    .delete-btn:hover {
+      background-color: #fff;
+      color: #000;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+      text-align: center;
+    }
+
+    li {
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+  </style>
+  <script>
+    function increment(id) {
+      const input = document.getElementById(id);
+      input.step = "1";
+      input.value = parseInt(input.value || "0") + 1;
+    }
+    function decrement(id) {
+      const input = document.getElementById(id);
+      input.step = "1";
+      const current = parseInt(input.value || "0");
+      if (current > 0) input.value = current - 1;
+    }
+  </script>
+</head>
+<body>
+
+  <button type="button" onclick="window.location.href='{{ url_for('admin_dashboard') }}'" class="back-button">← Back to Admin</button>
+
+  <h2>📦 Inventory Management</h2>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, message in messages %}
+          <li style="color: {{ 'lime' if category == 'success' else 'red' }};">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="{{ url_for('save_inventory') }}">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Image</th>
+          <th>Name</th>
+          <th>Description</th>
+          <th>MRP (₹)</th>
+          <th>Offer Price (₹)</th>
+          <th>Quantity</th>
+          <th>Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in inventory %}
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>
+            {% if item.image %}
+              <img src="{{ url_for('static', filename=item.image) }}" alt="Product Image" width="60" style="border-radius: 8px; box-shadow: 0 0 10px #0ff;">
+            {% else %}
+              N/A
+            {% endif %}
+          </td>
+          <td><input type="text" name="name_{{ item.id }}" value="{{ item.name }}"></td>
+          <td><textarea name="description_{{ item.id }}" oninput="this.style.height='auto'; this.style.height=this.scrollHeight + 'px';">{{ item.description }}</textarea></td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('mrp_{{ item.id }}')">−</button>
+              <input type="number" name="mrp_{{ item.id }}" id="mrp_{{ item.id }}" value="{{ item.mrp }}" step="1">
+              <button type="button" onclick="increment('mrp_{{ item.id }}')">+</button>
+            </div>
+          </td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('offer_price_{{ item.id }}')">−</button>
+              <input type="number" name="offer_price_{{ item.id }}" id="offer_price_{{ item.id }}" value="{{ item.offer_price }}" step="1">
+              <button type="button" onclick="increment('offer_price_{{ item.id }}')">+</button>
+            </div>
+          </td>
+          <td>
+            <div class="number-field-container">
+              <button type="button" onclick="decrement('quantity_{{ item.id }}')">−</button>
+              <input type="number" name="quantity_{{ item.id }}" id="quantity_{{ item.id }}" value="{{ item.quantity }}" min="0" step="1">
+              <button type="button" onclick="increment('quantity_{{ item.id }}')">+</button>
+            </div>
+          </td>
+          <td>
+            <a href="{{ url_for('delete_item', item_id=item.id) }}">
+              <button type="button" class="delete-btn">🗑️</button>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <button type="submit" class="btn">💾 Save Changes</button>
+    </div>
+  </form>
+
+</body>
+</html>

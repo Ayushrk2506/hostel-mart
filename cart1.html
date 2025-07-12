@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Your Cart – Hostel Mart</title>
+    <style>
+        body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+        h2 { text-align: center; }
+        table {
+            width: 100%; border-collapse: collapse; margin-top: 20px;
+            background: white; border-radius: 8px; overflow: hidden;
+        }
+        th, td {
+            padding: 12px; border: 1px solid #ddd; text-align: center;
+        }
+        th { background-color: #333; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .summary {
+            margin-top: 20px; background: #fff; padding: 15px;
+            border-radius: 8px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        img {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .qty-btn {
+            padding: 4px 8px;
+            margin: 0 4px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .qty {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h2>🧺 Your Cart</h2>
+
+<table>
+    <tr>
+        <th>Image</th>
+        <th>Item</th>
+        <th>Qty</th>
+        <th>MRP</th>
+        <th>Offer Price</th>
+        <th>Subtotal</th>
+    </tr>
+    {% for item in cart_details %}
+    <tr>
+        <td><img src="{{ url_for('static', filename=item.image) }}" alt="img"></td>
+        <td>{{ item.name }}</td>
+        <td>
+            <form action="/update_cart_quantity" method="POST" style="display:inline;">
+                <input type="hidden" name="item_id" value="{{ item.id }}">
+                <button type="submit" name="action" value="decrement" class="qty-btn">−</button>
+                <span class="qty">{{ item.qty }}</span>
+                <button type="submit" name="action" value="increment" class="qty-btn">+</button>
+            </form>
+        </td>
+        <td>₹{{ item.mrp }}</td>
+        <td>₹{{ item.offer_price }}</td>
+        <td>₹{{ item.subtotal }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<div class="summary">
+    <p><strong>Total (Offer Price): ₹{{ total_offer }}</strong></p>
+    <p>You saved ₹{{ savings }} today!</p>
+
+    <a href="/order" class="btn">Proceed to Order</a>
+    <br><br>
+    <a href="/" class="btn" style="background:#555;">← Back to Shopping</a>
+</div>
+
+</body>
+</html>

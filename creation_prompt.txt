@@ -1,0 +1,199 @@
+🏪 Hostel Mart: Full Project Breakdown
+🔧 Project Type:
+A full-stack Flask web application for hostel students to order groceries and snacks. Customers and Admins have separate access levels.
+
+👥 User Roles:
+1. Customer (Hostel Mate)
+Signup with name, mobile, email
+
+OTP verification via email (Apple Mail SMTP)
+
+Create password after OTP
+
+Login with mobile & password
+
+Forgot Password flow (OTP + reset)
+
+View profile
+
+Personal details
+
+Order history
+
+Track order
+
+Place orders via UPI/COD
+
+2. Admin
+Login using a fixed PIN (e.g., 6006)
+
+Access to Admin Dashboard:
+
+Inventory Management
+
+Add Items
+
+Order Details
+
+Customer Information
+
+🔑 Authentication Flow:
+OTP system with email_utils.py
+
+Session-based login
+
+Flash greeting post-login
+
+Profile icon shows after login
+
+Order tracking with latest order auto-filled
+
+📦 Order System:
+Cart-based ordering
+
+Delivery charge logic:
+
+₹5 if total ≤ ₹50
+
+10% of total if > ₹50
+
+UPI QR Payment + COD
+
+Dynamic Order Summary
+
+Order ID Format:
+
+sql
+Copy
+Edit
+<10-digit mobile> + <4-digit room (with leading 0s)> + <3-digit random>
+e.g., 89044162750205XYZ
+🛠️ Admin Features:
+1. Inventory Management (/inventory)
+Shows items with:
+
+Name, image, MRP, offer price, stock
+
+Edit/delete options
+
+Increment/decrement buttons
+
+2. Add Item (/add_item)
+Add product with:
+
+Name, description, MRP, offer, stock
+
+Image upload
+
+3. Order Details (/orders)
+Shows all orders with:
+
+Customer name, phone, room, order code, summary, payment mode, total
+
+Dropdown to update status
+
+Delete order option
+
+4. Customer Information (/customers_info)
+Table of all users
+
+Show:
+
+Name, email, mobile, password (plaintext now after SHA-256 removed)
+
+Eye icon toggle to view password
+
+Delete customer button
+
+🎨 Design Theme: Neon Night Mode
+All templates use:
+
+Vibrant neon blue, purple, pink
+
+neon.css for shared styles
+
+Glowing borders, buttons, text-shadow, and backdrop filters
+
+All existing HTML layouts preserved
+
+Inputs styled with glowing effects
+
+💻 Technologies Used:
+Layer	Stack
+Backend	Python, Flask
+Frontend	HTML, CSS (neon.css), JS
+DB	SQLite (database.db)
+QR Code	qrcode Python lib
+Email (OTP)	SMTP (Apple Mail)
+Session Mgmt	Flask sessions
+
+🧾 File Overview
+File	Description
+app.py	Main Flask app with all routes and logic
+email_utils.py	Sends OTPs via email using Apple Mail SMTP
+database.db	SQLite DB file
+init_customers.py	Initializes customers table
+neon.css	Global night-theme stylesheet
+/templates/*.html	All front-end templates
+/static/uploads/	Uploaded product images
+/static/qr/	UPI QR images generated per order
+
+✅ Features Implemented So Far:
+✅ Customer Signup & OTP verification
+
+✅ Password creation + login/logout
+
+✅ Forgot password flow
+
+✅ Product listing & cart
+
+✅ Delivery charges calculation
+
+✅ UPI QR & COD support
+
+✅ Admin dashboard with all four sections
+
+✅ Order status updater
+
+✅ Secure customer sessions
+
+✅ Night-themed design (neon.css)
+
+✅ Order tracking (autofilled for latest order)
+
+✅ Email field now shown properly (added to DB)
+
+✅ SHA-256 password encryption removed
+
+✅ Plaintext password visible to admin with eye icon
+
+🌐 Deployment Plan: Render
+Free hosting of Flask app using Render.com
+
+GitHub repo connected to Render
+
+Auto-deploy on every commit
+
+You can edit:
+
+app.py
+
+HTML/CSS
+
+Static files
+
+Real-time updates possible anytime
+
+Shared link for customers (e.g., yourproject.onrender.com)
+
+Admin accessible via same link (/admin) or optional 2nd URL with PIN
+
+🗃️ To Be Done (if not done yet):
+Final step-by-step GitHub + Render deployment
+
+Optional: Add image compression on upload
+
+Optional: Analytics/dashboard for admin
+
+Optional: Persistent login (Remember Me)
+
