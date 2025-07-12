@@ -229,11 +229,6 @@
 {% endfor %}
 
 <script>
-  let cartQuantities = {};
-  {% for k, v in cart.items() %}
-    cartQuantities[{{ k }}] = {{ v.quantity }};
-  {% endfor %}
-
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll('.qty-controls').forEach(control => {
       const qtySpan = control.querySelector('span');
@@ -241,16 +236,10 @@
       const plusBtn = control.querySelector('button:last-child');
       const itemId = plusBtn.getAttribute('onclick').match(/\d+/)[0];
       const stockSpan = document.getElementById(`stock-${itemId}`);
-      
-      const qty = cartQuantities[itemId] || 0;
-      const stock = parseInt(stockSpan.textContent);
 
-      qtySpan.textContent = qty;
-
-      // Initial states
-      minusBtn.disabled = qty <= 0;
-      styleMinusBtn(minusBtn);
-      updatePlusBtn(plusBtn, stock);
+      qtySpan.textContent = "0";
+      setMinusState(minusBtn, false); // Disable '-' on load
+      setPlusState(plusBtn, parseInt(stockSpan.textContent));
     });
   });
 
@@ -270,64 +259,43 @@
       qty--;
       stock++;
     } else {
-      return; // Invalid action (e.g. decrement at 0)
+      // Prevent anything from happening
+      return;
     }
 
     qtySpan.textContent = qty;
     stockSpan.textContent = stock;
 
-    // Update minus button
-    minusBtn.disabled = qty <= 0;
-    styleMinusBtn(minusBtn);
-
-    // Update plus button
-    updatePlusBtn(plusBtn, stock);
+    setMinusState(minusBtn, qty > 0);
+    setPlusState(plusBtn, stock);
   }
 
-  function updatePlusBtn(button, stock) {
+  function setMinusState(button, enable) {
+    button.disabled = !enable;
+    if (!enable) {
+      button.style.backgroundColor = "#888";
+      button.style.boxShadow = "none";
+      button.style.cursor = "not-allowed";
+    } else {
+      button.style.backgroundColor = "#0ff";
+      button.style.boxShadow = "0 0 10px #0ff";
+      button.style.cursor = "pointer";
+    }
+  }
+
+  function setPlusState(button, stock) {
+    button.disabled = stock <= 0;
     if (stock <= 0) {
-      button.disabled = true;
       button.textContent = "Stock Empty";
       button.style.backgroundColor = "#888";
       button.style.boxShadow = "none";
       button.style.cursor = "not-allowed";
     } else {
-      button.disabled = false;
       button.textContent = "+";
       button.style.backgroundColor = "#0ff";
       button.style.boxShadow = "0 0 10px #0ff";
       button.style.cursor = "pointer";
     }
-  }
-
-  function styleMinusBtn(button) {
-    if (button.disabled) {
-      button.style.backgroundColor = "#444";
-      button.style.cursor = "not-allowed";
-      button.style.boxShadow = "none";
-    } else {
-      button.style.backgroundColor = "#0ff";
-      button.style.cursor = "pointer";
-      button.style.boxShadow = "0 0 10px #0ff";
-    }
-  }
-
-  function bulkAddToCart() {
-    const data = {};
-    document.querySelectorAll('.qty-controls').forEach(div => {
-      const id = div.querySelector('button:last-child').getAttribute('onclick').match(/\d+/)[0];
-      const qty = parseInt(div.querySelector('span').textContent);
-      if (qty > 0) data[id] = qty;
-    });
-
-    fetch('/add_bulk_to_cart', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(data)
-    }).then(() => {
-      alert('Added to cart!');
-      location.reload();
-    }).catch(() => alert('Failed to add to cart.'));
   }
 </script>
 
