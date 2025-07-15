@@ -12,7 +12,7 @@ from flask import (
 )
 from email_utils import send_otp_email  # Your email sending helper
 
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 app.secret_key = 'supersecretkey'
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -22,7 +22,7 @@ UPI_ID = "9019531019@ybl"
 
 # --- DB Connection ---
 def get_db_connection():
-    conn = sqlite3.connect('database.db')  # no more ../
+    conn = sqlite3.connect(os.path.join(app.instance_path, 'database.db'))  # no more ../
     conn.row_factory = sqlite3.Row
     return conn
 def save_password_for_email(email, password):
@@ -608,7 +608,7 @@ def regenerate_qr():
         flash("Invalid request. Order code missing.", "error")
         return redirect('/')
 
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(os.path.join(app.instance_path, 'database.db'))
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
 
