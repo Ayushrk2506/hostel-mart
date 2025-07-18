@@ -1,47 +1,35 @@
 import os
-import sqlite3
 import qrcode
 import random
-import hashlib
-import string
 from datetime import datetime
-from flask import flash
 from flask import (
     Flask, render_template, request, redirect,
     url_for, session, jsonify, flash
 )
-from email_utils import send_otp_email  # Your email sending helper
+from email.mime.text import MIMEText
+from email_utils import (
+    send_otp_email,
+    generate_otp,
+    send_order_notification_to_admin,
+    send_order_confirmation_to_customer,
+    send_order_status_update_to_customer,
+)
 
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+# Initialize Firebase
+cred = credentials.Certificate("firebase-key.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Flask app setup
 app = Flask(__name__, instance_relative_config=True)
 app.secret_key = 'supersecretkey'
 UPLOAD_FOLDER = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-
 UPI_ID = "9019531019@ybl"
-
-# --- DB Connection ---
-def get_db_connection():
-    conn = sqlite3.connect(os.path.join(app.instance_path, 'database.db'))  # no more ../
-    conn.row_factory = sqlite3.Row
-    return conn
-def save_password_for_email(email, password):
-    conn = get_db_connection()
-    conn.execute("UPDATE customers SET password = ? WHERE email = ?", (password, email))
-    conn.commit()
-    conn.close()
-
-
-# --- Utility: Generate OTP ---
-def generate_otp(length=6):
-    return ''.join(random.choices(string.digits, k=length))
-
-# --- Utility: Validate OTP for Signup ---
-def valid_otp_for_email(email, entered_otp):
-    signup_data = session.get("signup_data")
-    if signup_data and signup_data.get("email") == email:
-        return signup_data.get("otp") == entered_otp
-    return False
 
 # --- Require login for cart/order related operations ---
 @app.before_request
@@ -64,17 +52,27 @@ def homepage():
 # --- Old Homepage (Now moved to /shop) ---
 @app.route("/shop")
 def index():
-    conn = get_db_connection()
-    items = conn.execute("SELECT * FROM products").fetchall()
-    conn.close()
+    # Fetch products from Firestore instead of SQLite
+    products_ref = db.collection('products')
+    docs = products_ref.stream()
+    items = []
+    for doc in docs:
+        data = doc.to_dict()
+        data['id'] = doc.id  # ensure each item has an ID
+        items.append(data)
 
     cart = session.get("cart", {})
     cart_quantities = {int(k): v["quantity"] for k, v in cart.items()}
 
     user = session.get("user")
 
-    return render_template("index.html", items=items, cart=cart,
-                           cart_quantities=cart_quantities, user=user)
+    return render_template(
+        "index.html",
+        items=items,
+        cart=cart,
+        cart_quantities=cart_quantities,
+        user=user
+    )
 
 
 # --- Customer Signup Step 1: Enter Details & Send OTP ---
@@ -85,11 +83,10 @@ def signup():
         mobile = request.form["mobile"].strip()
         email = request.form["email"].strip()
 
-        # Validate uniqueness of mobile
-        conn = get_db_connection()
-        exists = conn.execute("SELECT * FROM customers WHERE mobile = ?", (mobile,)).fetchone()
-        conn.close()
-        if exists:
+        # Validate uniqueness of mobile in Firestore
+        customers_ref = db.collection('customers')
+        duplicate_query = customers_ref.where('mobile', '==', mobile).stream()
+        if any(True for _ in duplicate_query):
             flash("⚠️ Account already linked with this phone number.", "error")
             return redirect(url_for("signup"))
 
@@ -179,18 +176,21 @@ def create_password():
         mobile = signup_info["mobile"]
         email = signup_info["email"]
 
-        # ✅ Save full customer into DB
-        conn = get_db_connection()
-        conn.execute("INSERT INTO customers (name, mobile, email, password) VALUES (?, ?, ?, ?)",
-                     (name, mobile, email, password))
-        conn.commit()
-
-        user = conn.execute("SELECT * FROM customers WHERE mobile = ?", (mobile,)).fetchone()
-        conn.close()
+        # ✅ Save full customer into Firestore
+        customer_data = {
+            "name": name,
+            "mobile": mobile,
+            "email": email,
+            "password": password  # plain text as per your preference
+        }
+        # Add document with mobile number as ID (optional, or let Firestore generate one)
+        doc_ref = db.collection("customers").add(customer_data)
+        user_doc = db.collection("customers").document(doc_ref[1].id).get()
 
         # ✅ Login user
+        user = user_doc.to_dict()
         session["user"] = {
-            "id": user["id"],
+            "id": user_doc.id,
             "name": user["name"],
             "mobile": user["mobile"],
             "email": user["email"]
@@ -222,28 +222,32 @@ def login():
         mobile = request.form["mobile"]
         password = request.form["password"]
 
-        conn = get_db_connection()
-        user = conn.execute("SELECT * FROM customers WHERE mobile = ?", (mobile,)).fetchone()
-        conn.close()
+        # Fetch user document by mobile number from Firestore
+        users_ref = db.collection("customers")
+        query = users_ref.where("mobile", "==", mobile).limit(1).stream()
+        user_docs = list(query)
 
-        if not user:
+        if not user_docs:
             error = "No account detected with this Phone Number."
             return render_template("login.html", error=error)
 
-        if user["password"] != password:
+        user_doc = user_docs[0]
+        user_data = user_doc.to_dict()
+
+        if user_data.get("password") != password:
             error = "Incorrect password."
             return render_template("login.html", error=error)
 
         # Store user session
         session["user"] = {
-            "id": user["id"],
-            "name": user["name"],
-            "mobile": user["mobile"],
-            "email": user["email"]
+            "id": user_doc.id,
+            "name": user_data.get("name"),
+            "mobile": user_data.get("mobile"),
+            "email": user_data.get("email")
         }
 
-        flash(f"👋 Hello {user['name']}, welcome to Hostel Mart!", "success")
-        return render_template("login_success.html", user_name=user["name"])
+        flash(f"👋 Hello {user_data.get('name')}, welcome to Hostel Mart!", "success")
+        return render_template("login_success.html", user_name=user_data.get("name"))
 
     return render_template("login.html")
 
@@ -254,20 +258,49 @@ def profile():
         flash("Please log in to view your profile.")
         return redirect(url_for("login"))
 
-    conn = get_db_connection()
+    # 1️⃣ Fetch all orders for this user, ordered by order_time desc
+    orders_query = (
+        db.collection("orders")
+          .where("mobile", "==", user["mobile"])
+          .order_by("order_time", direction=firestore.Query.DESCENDING)
+          .stream()
+    )
 
-    orders = conn.execute("""
-        SELECT o.id AS order_id, o.order_code, o.room, o.payment, o.status, o.order_time,
-               COALESCE(SUM(oi.quantity * oi.price), 0) AS total_amount
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.mobile = ?
-        GROUP BY o.id
-        ORDER BY o.order_time DESC
-    """, (user["mobile"],)).fetchall()
+    orders = []
+    for order_doc in orders_query:
+        order_data = order_doc.to_dict()
+        order_id = order_doc.id
 
-    conn.close()
+        # 2️⃣ Grab items from an 'order_items' subcollection under this order
+        items_ref = db.collection("orders").document(order_id).collection("order_items")
+        items_stream = items_ref.stream()
+
+        total_amount = 0
+        items = []
+        for item_doc in items_stream:
+            item = item_doc.to_dict()
+            subtotal = item["quantity"] * item["price"]
+            total_amount += subtotal
+            items.append({
+                "name": item.get("name"),
+                "qty": item["quantity"],
+                "offer_price": item["price"],
+                "subtotal": subtotal
+            })
+
+        orders.append({
+            "order_id": order_id,
+            "order_code": order_data.get("order_code"),
+            "room": order_data.get("room"),
+            "payment": order_data.get("payment"),
+            "status": order_data.get("status"),
+            "order_time": order_data.get("order_time"),
+            "total_amount": total_amount,
+            "items": items
+        })
+
     return render_template("profile.html", user=user, orders=orders)
+
 
 
 
@@ -301,15 +334,25 @@ def forgot_password():
             mobile = request.form["mobile"].strip()
             email = request.form["email"].strip()
 
-            conn = get_db_connection()
-            user = conn.execute("SELECT * FROM customers WHERE mobile = ? AND email = ? AND name = ?", (mobile, email, name)).fetchone()
-            conn.close()
+            # 🔎 Look up customer doc in Firestore
+            cust_docs = (
+                db.collection("customers")
+                  .where("mobile", "==", mobile)
+                  .where("email", "==", email)
+                  .where("name", "==", name)
+                  .stream()
+            )
+            user_doc = next(cust_docs, None)
 
-            if not user:
+            if not user_doc:
                 flash("User details not found. Please check and try again.", "error")
             else:
                 otp = generate_otp()
-                session["forgot_password_data"] = {"mobile": mobile, "email": email, "otp": otp}
+                session["forgot_password_data"] = {
+                    "mobile": mobile,
+                    "email": email,
+                    "otp": otp
+                }
                 try:
                     send_otp_email(email, otp)
                     flash("OTP sent to your email.", "success")
@@ -317,7 +360,11 @@ def forgot_password():
                 except Exception:
                     flash("Failed to send OTP email. Try again later.", "error")
 
-    return render_template("forgot_password.html", step=step, email=data["email"] if data else None)
+    return render_template(
+        "forgot_password.html",
+        step=step,
+        email=data["email"] if data else None
+    )
 
 
 
@@ -340,14 +387,14 @@ def reset_password():
             flash("Password must be at least 6 characters.", "error")
             return redirect(url_for("reset_password"))
 
-        # Save password as plain text (you requested to remove hashing)
-        plain_password = new_password
+        # 🔄 Update password in Firestore
+        users_ref = db.collection("customers")
+        query = users_ref.where("mobile", "==", data["mobile"]).stream()
+        user_doc = next(query, None)
+        if user_doc:
+            users_ref.document(user_doc.id).update({"password": new_password})
 
-        conn = get_db_connection()
-        conn.execute("UPDATE customers SET password = ? WHERE mobile = ?", (plain_password, data["mobile"]))
-        conn.commit()
-        conn.close()
-
+        # Clear session and continue
         session.pop("forgot_password_data", None)
         flash("Password reset successful! Please login.", "success")
         return redirect(url_for("login"))
@@ -361,181 +408,313 @@ def reset_password():
 # --- Add Single Item to Cart (legacy JS flow) ---
 @app.route("/add_to_cart/<int:item_id>", methods=["POST"])
 def add_to_cart(item_id):
+    # Must be logged in
+    if "user" not in session:
+        return redirect(url_for("login"))
+
     quantity = int(request.form["quantity"])
-    cart = session.get("cart", {})
+    user_id = session["user"]["id"]
 
-    if str(item_id) in cart:
-        cart[str(item_id)]["quantity"] += quantity
+    # Reference to this user's cart item in Firestore
+    cart_item_ref = db \
+        .collection("carts") \
+        .document(str(user_id)) \
+        .collection("items") \
+        .document(str(item_id))
+
+    cart_item = cart_item_ref.get()
+
+    if cart_item.exists:
+        # Increment existing quantity
+        new_qty = cart_item.to_dict().get("quantity", 0) + quantity
+        cart_item_ref.update({"quantity": new_qty})
     else:
-        conn = get_db_connection()
-        product = conn.execute("SELECT name, offer_price FROM products WHERE id = ?", (item_id,)).fetchone()
-        conn.close()
-        if product:
-            cart[str(item_id)] = {
-                "name": product["name"],
-                "price": product["offer_price"],
-                "quantity": quantity
-            }
+        # Fetch product info from Firestore products collection
+        prod_ref = db.collection("products").document(str(item_id))
+        prod_snap = prod_ref.get()
+        if not prod_snap.exists:
+            # invalid product id
+            return ("", 404)
 
-    session["cart"] = cart
-    session.modified = True
-    return "", 204
+        prod = prod_snap.to_dict()
+        cart_item_ref.set({
+            "name": prod["name"],
+            "price": prod["offer_price"],
+            "quantity": quantity
+        })
+
+    return ("", 204)
 
 # --- Add Bulk Items to Cart ---
 @app.route("/add_bulk_to_cart", methods=["POST"])
 def add_bulk_to_cart():
-    data = request.get_json()
-    cart = session.get("cart", {})
+    if "user" not in session:
+        return redirect(url_for("login"))
 
-    conn = get_db_connection()
+    user_id = session["user"]["id"]
+    data = request.get_json()
+
     for item_id_str, qty in data.items():
         item_id = int(item_id_str)
-        product = conn.execute("SELECT name, offer_price FROM products WHERE id = ?", (item_id,)).fetchone()
-        if product:
-            if str(item_id) in cart:
-                cart[str(item_id)]["quantity"] += qty
+        product_ref = db.collection("products").document(str(item_id))
+        product_doc = product_ref.get()
+
+        if product_doc.exists:
+            product = product_doc.to_dict()
+            cart_item_ref = (
+                db.collection("carts")
+                  .document(str(user_id))
+                  .collection("items")
+                  .document(str(item_id))
+            )
+
+            cart_item = cart_item_ref.get()
+            if cart_item.exists:
+                # Increment quantity if item already in cart
+                existing_qty = cart_item.to_dict().get("quantity", 0)
+                cart_item_ref.update({
+                    "quantity": existing_qty + qty
+                })
             else:
-                cart[str(item_id)] = {
+                # Add new item to cart
+                cart_item_ref.set({
                     "name": product["name"],
                     "price": product["offer_price"],
                     "quantity": qty
-                }
+                })
 
-    conn.close()
-    session["cart"] = cart
-    session.modified = True
     return "", 204
+
 
 # --- Cart Page ---
 @app.route("/cart")
 def cart():
-    conn = get_db_connection()
-    cart = session.get("cart", {})
+    if "user" not in session:
+        flash("Please log in to view your cart.")
+        return redirect(url_for("login"))
+
+    user_id = session["user"]["id"]
+    cart_items_ref = db.collection("carts").document(str(user_id)).collection("items")
+    items_stream = cart_items_ref.stream()
+
     cart_details = []
     total_offer = 0
     total_mrp = 0
 
-    for item_id, item in cart.items():
-        product = conn.execute("SELECT * FROM products WHERE id = ?", (item_id,)).fetchone()
-        if product:
-            subtotal = product["offer_price"] * item["quantity"]
+    for item_doc in items_stream:
+        item_id = item_doc.id
+        cart_item = item_doc.to_dict()
+
+        # Fetch product details from Firestore
+        product_ref = db.collection("products").document(item_id)
+        product_doc = product_ref.get()
+
+        if product_doc.exists:
+            product = product_doc.to_dict()
+            quantity = cart_item.get("quantity", 0)
+            offer_price = product["offer_price"]
+            mrp = product["mrp"]
+            subtotal = quantity * offer_price
+
             cart_details.append({
-                "id": product["id"],
+                "id": int(item_id),
                 "name": product["name"],
-                "qty": item["quantity"],
-                "offer_price": product["offer_price"],
-                "mrp": product["mrp"],
+                "qty": quantity,
+                "offer_price": offer_price,
+                "mrp": mrp,
                 "subtotal": subtotal,
-                "image": product["image"]
+                "image": product.get("image", "")
             })
+
             total_offer += subtotal
-            total_mrp += product["mrp"] * item["quantity"]
+            total_mrp += mrp * quantity
 
     savings = total_mrp - total_offer
-    conn.close()
-    return render_template("cart.html", cart_details=cart_details, total_offer=total_offer, savings=savings)
+
+    return render_template(
+        "cart.html",
+        cart_details=cart_details,
+        total_offer=total_offer,
+        savings=savings
+    )
+
 
 # --- Cart Quantity Update ---
 @app.route("/update_cart_quantity", methods=["POST"])
 def update_cart_quantity():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    user_id = session["user"]["id"]
     item_id = request.form["item_id"]
     action = request.form["action"]
-    cart = session.get("cart", {})
 
-    if item_id in cart:
+    cart_item_ref = db.collection("carts").document(str(user_id)).collection("items").document(item_id)
+    cart_item_doc = cart_item_ref.get()
+
+    if cart_item_doc.exists:
+        cart_item = cart_item_doc.to_dict()
+        quantity = cart_item.get("quantity", 0)
+
         if action == "increment":
-            cart[item_id]["quantity"] += 1
+            quantity += 1
+            cart_item_ref.update({"quantity": quantity})
         elif action == "decrement":
-            cart[item_id]["quantity"] -= 1
-            if cart[item_id]["quantity"] <= 0:
-                del cart[item_id]
+            quantity -= 1
+            if quantity <= 0:
+                cart_item_ref.delete()
+            else:
+                cart_item_ref.update({"quantity": quantity})
 
-    session["cart"] = cart
     return redirect("/cart")
+
 
 # --- Order Form ---
 @app.route("/order", methods=["GET", "POST"])
 def order():
-    cart = session.get("cart", {})
+    if "user" not in session:
+        flash("Please log in to place an order.", "error")
+        return redirect(url_for("login"))
 
-    if not cart:
-        flash("🛒 Your cart is empty. Please add items before placing an order.", "error")
-        return redirect("/cart")
+    user = session["user"]
+    user_id = user["id"]
 
-    conn = get_db_connection()
+    # Fetch cart from Firestore
+    cart_items_ref = db.collection("carts").document(str(user_id)).collection("items")
+    cart_items = cart_items_ref.stream()
+
     cart_details = []
     total_offer = 0
 
-    for item_id, item in cart.items():
-        product = conn.execute("SELECT * FROM products WHERE id = ?", (item_id,)).fetchone()
-        if product:
-            subtotal = product["offer_price"] * item["quantity"]
+    for item_doc in cart_items:
+        item = item_doc.to_dict()
+        item_id = item_doc.id
+        product_ref = db.collection("products").document(item_id)
+        product_doc = product_ref.get()
+
+        if product_doc.exists:
+            product = product_doc.to_dict()
+            quantity = item["quantity"]
+            subtotal = product["offer_price"] * quantity
             cart_details.append({
-                "id": product["id"],
+                "id": int(item_id),
                 "name": product["name"],
-                "qty": item["quantity"],
+                "qty": quantity,
                 "offer_price": product["offer_price"],
                 "subtotal": subtotal,
-                "image": product["image"]
+                "image": product.get("image", "")
             })
             total_offer += subtotal
 
+    if not cart_details:
+        flash("🛒 Your cart is empty. Please add items before placing an order.", "error")
+        return redirect("/cart")
+
     if request.method == "POST":
         name = request.form["name"]
+        email = request.form["email"]
         room = request.form["room"]
         mobile = request.form["mobile"]
         payment = request.form["payment"]
         order_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Generate Order ID: phone(10) + padded room + 3-digit random
+        # Generate unique order code
         room_padded = room.zfill(4)
         rand_int = random.randint(100, 999)
         order_code = f"{mobile}{room_padded}{rand_int}"
-
-        # Ensure unique order_code
-        existing = conn.execute("SELECT * FROM orders WHERE order_code = ?", (order_code,)).fetchone()
-        while existing:
+        while db.collection("orders").where("order_code", "==", order_code).limit(1).stream():
             rand_int = random.randint(100, 999)
             order_code = f"{mobile}{room_padded}{rand_int}"
-            existing = conn.execute("SELECT * FROM orders WHERE order_code = ?", (order_code,)).fetchone()
 
-        # Insert order
-        conn.execute("""
-            INSERT INTO orders (order_code, name, room, mobile, payment, order_time, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (order_code, name, room, mobile, payment, order_time, "Pending"))
+        # Create new order document
+        order_ref = db.collection("orders").document()
+        order_data = {
+            "order_code": order_code,
+            "name": name,
+            "email": email,  # ✅ include email in Firestore
+            "room": room,
+            "mobile": mobile,
+            "payment": payment,
+            "order_time": order_time,
+            "status": "Pending"
+        }
+        order_ref.set(order_data)
 
-        order_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        # ✅ Send order email to admin
+        send_order_notification_to_admin(
+            name=name,
+            email=email,
+            mobile=mobile,
+            room=room,
+            cart_details=cart_details
+        )
 
-        for item_id, item in cart.items():
-            conn.execute("""
-                INSERT INTO order_items (order_id, product_id, quantity, price)
-                VALUES (?, ?, ?, ?)
-            """, (order_id, item_id, item["quantity"], item["price"]))
+        # ✅ Send order email to customer
+        send_order_confirmation_to_customer(
+            name=name,
+            email=email,
+            mobile=mobile,
+            room=room,
+            cart_details=cart_items,
+            order_time=order_time
+        )
 
-            conn.execute("UPDATE products SET quantity = quantity - ? WHERE id = ?",
-                         (item["quantity"], item_id))
+        
+        # Add each cart item to the order + update product stock
+        batch = db.batch()
+        for item in cart_details:
+            item_id = str(item["id"])
+            qty = item["qty"]
+            price = item["offer_price"]
 
-        conn.commit()
-        conn.close()
-        session.pop("cart", None)
+            # Add item to order_items subcollection
+            order_item_ref = order_ref.collection("order_items").document(item_id)
+            batch.set(order_item_ref, {
+                "product_id": item_id,
+                "quantity": qty,
+                "price": price
+            })
 
+            # Reduce stock
+            product_ref = db.collection("products").document(item_id)
+            product_doc = product_ref.get()
+            if product_doc.exists:
+                current_quantity = product_doc.to_dict().get("quantity", 0)
+                new_quantity = max(current_quantity - qty, 0)
+                batch.update(product_ref, {"quantity": new_quantity})
+
+        # Commit batch changes
+        batch.commit()
+
+        # 🧹 Clear user's Firestore cart
+        cart_items = cart_items_ref.stream()
+        for doc in cart_items:
+            doc.reference.delete()
+
+        # Calculate delivery
         import math
         if payment == "prepaid":
-            delivery_charge = 0
             final_amount = total_offer
             return redirect(url_for("payment_qr", amount=final_amount, order_code=order_code))
         else:
             delivery_charge = 5 if total_offer <= 50 else math.ceil(total_offer * 0.10)
             final_amount = total_offer + delivery_charge
-
             return render_template("order_cod_summary.html",
                                    order_code=order_code,
                                    cart_details=cart_details,
                                    delivery_charge=delivery_charge,
                                    final_amount=final_amount)
 
-    return render_template("order_form.html", cart_details=cart_details, total_offer=total_offer)
+    # Render GET request with autofilled data
+    return render_template(
+        "order_form.html",
+        cart_details=cart_details,
+        total_offer=total_offer,
+        name=user["name"],
+        email=user["email"],
+        mobile=user["mobile"]
+    )
+
 
 
 # --- Dynamic UPI QR Code ---
@@ -548,41 +727,49 @@ def payment_qr():
         flash("Missing payment information.", "error")
         return redirect("/shop")
 
-    # Generate QR with passed amount
+    # Generate UPI QR code
     upi_link = f"upi://pay?pa={UPI_ID}&pn=HostelMart&am={amount}&cu=INR"
     qr_img = qrcode.make(upi_link)
     qr_path = os.path.join(app.config["UPLOAD_FOLDER"], "qr.png")
     qr_img.save(qr_path)
 
-    # Fetch order summary for display
-    conn = get_db_connection()
-    order = conn.execute("SELECT * FROM orders WHERE order_code = ?", (order_code,)).fetchone()
-    order_items = []
-    total_offer = 0
+    # Fetch order from Firestore using order_code
+    order_query = db.collection("orders").where("order_code", "==", order_code).limit(1).stream()
+    order_doc = next(order_query, None)
 
-    if order:
-        items = conn.execute(
-            "SELECT oi.*, p.name, p.offer_price FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE order_id = ?",
-            (order["id"],)
-        ).fetchall()
-        for item in items:
-            subtotal = item["offer_price"] * item["quantity"]
-            order_items.append({
-                "name": item["name"],
-                "qty": item["quantity"],
-                "offer_price": item["offer_price"],
-                "subtotal": subtotal
-            })
-            total_offer += subtotal
-    else:
-        conn.close()
+    if not order_doc or not order_doc.exists:
         flash("Invalid order code.", "error")
         return redirect("/shop")
 
-    conn.close()
+    order_id = order_doc.id
+    order_data = order_doc.to_dict()
 
-    final_amount = float(amount)  # Passed from order route
+    # Fetch order items
+    order_items_ref = db.collection("orders").document(order_id).collection("order_items")
+    items = order_items_ref.stream()
 
+    order_items = []
+    total_offer = 0
+    for item in items:
+        item_data = item.to_dict()
+        product_id = item_data["product_id"]
+        quantity = item_data["quantity"]
+        price = item_data["price"]
+        subtotal = quantity * price
+
+        # Fetch product name
+        product_doc = db.collection("products").document(str(product_id)).get()
+        product_name = product_doc.to_dict()["name"] if product_doc.exists else "Product"
+
+        order_items.append({
+            "name": product_name,
+            "qty": quantity,
+            "offer_price": price,
+            "subtotal": subtotal
+        })
+        total_offer += subtotal
+
+    final_amount = float(amount)
     summary = {
         "items": order_items,
         "total_offer": total_offer,
@@ -601,53 +788,59 @@ def payment_qr():
     )
 
 
+
+
 @app.route('/regenerate_qr')
 def regenerate_qr():
     order_code = request.args.get('order_code')
     if not order_code:
         flash("Invalid request. Order code missing.", "error")
-        return redirect('/')
+        return redirect('/shop')
 
-    conn = sqlite3.connect(os.path.join(app.instance_path, 'database.db'))
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+    db = firestore.client()
 
-    # Get order
-    order = c.execute("SELECT id FROM orders WHERE order_code = ?", (order_code,)).fetchone()
-    if not order:
-        conn.close()
+    # Find order by order_code
+    order_query = db.collection("orders").where("order_code", "==", order_code).limit(1).stream()
+    order_doc = next(order_query, None)
+    if not order_doc or not order_doc.exists:
         flash("Order not found.", "error")
-        return redirect('/')
+        return redirect('/shop')
 
-    # Get item details
-    order_items_raw = c.execute("""
-        SELECT p.name, oi.quantity, p.offer_price
-        FROM order_items oi
-        JOIN products p ON oi.product_id = p.id
-        WHERE oi.order_id = ?
-    """, (order["id"],)).fetchall()
-    conn.close()
+    order_id = order_doc.id
 
-    # Calculate final amount
+    # Fetch order items
+    order_items_ref = db.collection("orders").document(order_id).collection("order_items")
+    items = order_items_ref.stream()
+
     order_items = []
     total_offer = 0
-    for item in order_items_raw:
-        subtotal = item["quantity"] * item["offer_price"]
+
+    for item in items:
+        item_data = item.to_dict()
+        product_id = str(item_data["product_id"])
+        quantity = item_data["quantity"]
+        price = item_data["price"]
+
+        # Fetch product name
+        product_doc = db.collection("products").document(product_id).get()
+        product_name = product_doc.to_dict().get("name", "Product") if product_doc.exists else "Product"
+
+        subtotal = quantity * price
         total_offer += subtotal
+
         order_items.append({
-            "name": item["name"],
-            "qty": item["quantity"],
-            "offer_price": item["offer_price"],
+            "name": product_name,
+            "qty": quantity,
+            "offer_price": price,
             "subtotal": subtotal
         })
 
-    final_amount = total_offer  # No delivery charge for prepaid
+    final_amount = total_offer
 
-    # Generate QR
+    # Generate new QR code
     qr_data = f"upi://pay?pa={UPI_ID}&pn=HostelMart&am={final_amount}&cu=INR&tn={order_code}"
     qr_img = qrcode.make(qr_data)
-    qr_filename = f"{order_code}_qr.png"
-    qr_path = os.path.join("static", qr_filename)
+    qr_path = os.path.join(app.config["UPLOAD_FOLDER"], "qr.png")  # always overwrite same file
     qr_img.save(qr_path)
 
     summary = {
@@ -658,11 +851,14 @@ def regenerate_qr():
     }
 
     return render_template("payment_qr.html",
-                           qr_file=qr_filename,
+                           qr_file="uploads/qr.png",
                            amount=final_amount,
                            order_code=order_code,
                            summary=summary,
-                           user=session.get("user"))
+                           user=session.get("user"),
+                           timer_minutes=5)
+
+
 
 
 # --- Admin Login ---
@@ -671,13 +867,16 @@ from flask import flash, redirect, url_for
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
-        pin = request.form.get('pin')
+        pin = request.form.get('pin', '').strip()
+
         if pin == '6388':
-            session['admin_logged_in'] = True  # ✅ Corrected session key
-            return redirect(url_for('admin_dashboard'))  # ✅ Matches your actual dashboard route
+            session['admin_logged_in'] = True
+            flash("🔐 Admin login successful.", "success")
+            return redirect(url_for('admin_dashboard'))
         else:
-            flash("Incorrect PIN")
+            flash("❌ Incorrect PIN. Please try again.", "error")
             return redirect(url_for('admin_login'))
+
     return render_template('admin_login.html')
 
 
@@ -686,6 +885,7 @@ def admin_login():
 @app.route("/dashboard")
 def admin_dashboard():
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
     return render_template("admin_dashboard.html")
 
@@ -693,45 +893,55 @@ def admin_dashboard():
 @app.route("/inventory")
 def inventory_page():
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
-    
-    conn = get_db_connection()
-    inventory = conn.execute("SELECT * FROM products").fetchall()
-    conn.close()
-    
+
+    db = firestore.client()
+    products_ref = db.collection("products").stream()
+
+    inventory = []
+    for doc in products_ref:
+        product = doc.to_dict()
+        product["id"] = doc.id
+        inventory.append(product)
+
     return render_template("inventory.html", inventory=inventory)
 
 @app.route("/add_item", methods=["GET", "POST"])
 def add_item():
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()
         description = request.form.get("description", "").strip()
-        mrp = request.form.get("mrp")
-        offer_price = request.form.get("offer_price")
-        quantity = request.form.get("quantity")
+        mrp = float(request.form.get("mrp", 0))
+        offer_price = float(request.form.get("offer_price", 0))
+        quantity = int(request.form.get("quantity", 0))
 
-        # Image handling
+        # Handle image upload
         image_file = request.files.get("image")
         image_filename = None
 
         if image_file and image_file.filename != "":
-            # Secure filename
             ext = os.path.splitext(image_file.filename)[1]
-            image_filename = f"{name.replace(' ', '_')}_{random.randint(1000, 9999)}{ext}"
-            image_path = os.path.join(app.config['UPLOAD_FOLDER'], image_filename)
+            safe_name = name.replace(" ", "_")
+            image_filename = f"{safe_name}_{random.randint(1000, 9999)}{ext}"
+            image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
             image_file.save(image_path)
-            image_filename = f"uploads/{image_filename}"  # save relative path for database
+            image_filename = f"uploads/{image_filename}"
 
-        conn = get_db_connection()
-        conn.execute("""
-            INSERT INTO products (name, description, mrp, offer_price, quantity, image)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (name, description, mrp, offer_price, quantity, image_filename))
-        conn.commit()
-        conn.close()
+        # Firestore save
+        db = firestore.client()
+        db.collection("products").add({
+            "name": name,
+            "description": description,
+            "mrp": mrp,
+            "offer_price": offer_price,
+            "quantity": quantity,
+            "image": image_filename
+        })
 
         flash("✅ New item added successfully.", "success")
         return redirect(url_for("inventory_page"))
@@ -739,73 +949,148 @@ def add_item():
     return render_template("add_item.html")
 
 
+
 @app.route("/delete_item/<int:item_id>")
 def delete_item(item_id):
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    conn.execute("DELETE FROM products WHERE id = ?", (item_id,))
-    conn.commit()
-    conn.close()
-    flash("Item deleted successfully.", "success")
+    db = firestore.client()
+    products_ref = db.collection("products")
+    query = products_ref.where("custom_id", "==", item_id).limit(1).stream()
+
+    doc_to_delete = None
+    for doc in query:
+        doc_to_delete = doc
+        break
+
+    if doc_to_delete:
+        doc_to_delete.reference.delete()
+        flash("✅ Item deleted successfully.", "success")
+    else:
+        flash("⚠️ Item not found.", "error")
+
     return redirect(url_for("inventory_page"))
+
 
 
 # --- Save Inventory Changes ---
 @app.route("/save_inventory", methods=["POST"])
 def save_inventory():
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    inventory = conn.execute("SELECT * FROM products").fetchall()
+    db = firestore.client()
+    products = db.collection("products").stream()
 
-    for item in inventory:
-        item_id = item["id"]
-        conn.execute('''
-            UPDATE products
-            SET name = ?, description = ?, mrp = ?, offer_price = ?, quantity = ?
-            WHERE id = ?
-        ''', (
-            request.form.get(f"name_{item_id}"),
-            request.form.get(f"description_{item_id}"),
-            request.form.get(f"mrp_{item_id}"),
-            request.form.get(f"offer_price_{item_id}"),
-            request.form.get(f"quantity_{item_id}"),
-            item_id
-        ))
+    for doc in products:
+        data = doc.to_dict()
+        item_id = data.get("custom_id")
+        if item_id is None:
+            continue  # skip items without a valid custom_id
 
-    conn.commit()
-    conn.close()
-    flash("Inventory updated successfully.", "success")
+        updated_data = {
+            "name": request.form.get(f"name_{item_id}", data["name"]),
+            "description": request.form.get(f"description_{item_id}", data.get("description", "")),
+            "mrp": float(request.form.get(f"mrp_{item_id}", data["mrp"])),
+            "offer_price": float(request.form.get(f"offer_price_{item_id}", data["offer_price"])),
+            "quantity": int(request.form.get(f"quantity_{item_id}", data["quantity"]))
+        }
+
+        db.collection("products").document(doc.id).update(updated_data)
+
+    flash("✅ Inventory updated successfully.", "success")
     return redirect("/inventory")
+
+
+
+@app.route("/notify_seller", methods=["POST"])
+def notify_seller():
+    if "user" not in session:
+        return "Unauthorized", 403
+
+    product_id = request.form.get("product_id")
+    product_ref = db.collection("products").document(product_id)
+    product_doc = product_ref.get()
+
+    if not product_doc.exists:
+        return "Product not found", 404
+
+    product = product_doc.to_dict()
+    product_name = product.get("name", "Unknown Product")
+
+    user = session["user"]
+    name = user["name"]
+    email = user["email"]
+    mobile = user["mobile"]
+
+    subject = f"📢 Product Out of Stock Notification - {product_name}"
+    body = f"""
+    Admin,
+
+    A customer has requested to be notified when the following product is restocked:
+
+    ➤ Product: {product_name}
+    ➤ Customer Name: {name}
+    ➤ Email: {email}
+    ➤ Mobile: {mobile}
+
+    Regards,
+    Hostel Mart
+    """
+
+    send_email(to="ayushr.cs24@bmsce.ac.in", subject=subject, body=body)
+    return "Notification sent to seller.", 200
 
 
 # --- Update Order Status ---
 @app.route("/orders")
 def view_orders():
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    orders_data = conn.execute("SELECT * FROM orders ORDER BY order_time DESC").fetchall()
+    db = firestore.client()
+    orders_ref = db.collection("orders").order_by("order_time", direction=firestore.Query.DESCENDING)
+    orders_docs = orders_ref.stream()
 
     all_orders = []
-    for order in orders_data:
-        customer = conn.execute("SELECT * FROM customers WHERE mobile = ?", (order["mobile"],)).fetchone()
-        
-        # ✅ Fetch quantity, price, name
-        items = conn.execute(
-            "SELECT oi.quantity, oi.price, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE order_id = ?",
-            (order["id"],)
-        ).fetchall()
+    for order_doc in orders_docs:
+        order = order_doc.to_dict()
+        order_id = order.get("custom_id")
 
-        # ✅ Correct total calculation using actual price
-        total = sum(item["quantity"] * item["price"] for item in items)
+        # Get customer details
+        customer_ref = db.collection("customers").document(order["mobile"])
+        customer_doc = customer_ref.get()
+        customer = customer_doc.to_dict() if customer_doc.exists else None
+
+        # Get order items
+        order_items_ref = db.collection("order_items").where("order_id", "==", order_id)
+        order_items = list(order_items_ref.stream())
+
+        items = []
+        total = 0
+        for item_doc in order_items:
+            item = item_doc.to_dict()
+            product_ref = db.collection("products").document(item["product_id"])
+            product_doc = product_ref.get()
+            product = product_doc.to_dict() if product_doc.exists else {"name": "Unknown"}
+
+            item_name = product.get("name", "Unknown")
+            quantity = item["quantity"]
+            price = item["price"]
+            total += quantity * price
+
+            items.append({
+                "name": item_name,
+                "quantity": quantity,
+                "price": price
+            })
 
         all_orders.append({
-            "id": order["id"],
+            "id": order_id,
             "order_code": order["order_code"],
             "name": order["name"],
             "mobile": order["mobile"],
@@ -817,37 +1102,68 @@ def view_orders():
             "total": total
         })
 
-    conn.close()
     return render_template("order.html", orders=all_orders)
+
 
 
 @app.route("/delete_order/<int:order_id>", methods=["POST"])
 def delete_order(order_id):
     if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    conn.execute("DELETE FROM order_items WHERE order_id = ?", (order_id,))
-    conn.execute("DELETE FROM orders WHERE id = ?", (order_id,))
-    conn.commit()
-    conn.close()
-    flash("Order deleted successfully.", "success")
+    db = firestore.client()
+
+    # Delete related order_items
+    order_items_ref = db.collection("order_items").where("order_id", "==", order_id)
+    order_items = order_items_ref.stream()
+    for item in order_items:
+        item.reference.delete()
+
+    # Delete the order itself
+    orders_ref = db.collection("orders").where("custom_id", "==", order_id)
+    orders = orders_ref.stream()
+    for order in orders:
+        order.reference.delete()
+
+    flash("✅ Order deleted successfully.", "success")
     return redirect(url_for("view_orders"))
+
 
 @app.route("/update_order_status", methods=["POST"])
 def update_order_status():
+    if not session.get("admin_logged_in"):
+        flash("Please login as admin to access this page.", "error")
+        return redirect(url_for("admin_login"))
+
+    db = firestore.client()
+
     order_id = request.form.get("order_id")
     new_status = request.form.get("status")
 
-    conn = sqlite3.connect("database.db")
-    cursor = conn.cursor()
-    cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (new_status, order_id))
-    conn.commit()
-    conn.close()
+    # Find the order document by custom_id
+    orders_ref = db.collection("orders").where("custom_id", "==", int(order_id))
+    results = orders_ref.stream()
 
-    flash("Order status updated successfully.", "success")
+    for doc in results:
+        doc.reference.update({"status": new_status})
+
+        # ✅ Fetch customer info for email
+        order_data = doc.to_dict()
+        name = order_data.get("name", "Customer")
+        email = order_data.get("email")
+        order_code = order_data.get("order_code", "N/A")
+
+        # ✅ Send email if email exists
+        if email:
+            send_order_status_update_to_customer(name, email, order_code, new_status)
+
+        flash("✅ Order status updated successfully.", "success")
+        break
+    else:
+        flash("⚠️ Order not found.", "error")
+
     return redirect(url_for("view_orders"))
-
 
 
 # --- Customers Information (Admin Only) ---
@@ -857,24 +1173,34 @@ def customers_info():
         flash("Admin login required.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    customers = conn.execute("SELECT * FROM customers").fetchall()
-    conn.close()
+    db = firestore.client()  # ✅ Initialize Firestore client
+
+    # Fetch all customer documents from Firestore
+    customers_ref = db.collection("customers")
+    customers_docs = customers_ref.stream()
+
+    # Convert documents to list of dicts
+    customers = []
+    for doc in customers_docs:
+        customer = doc.to_dict()
+        customer["id"] = doc.id  # Optional: include Firestore document ID
+        customers.append(customer)
 
     return render_template("customers_info.html", customers=customers)
 
-@app.route("/delete_customer/<int:customer_id>", methods=["POST"])
+
+@app.route("/delete_customer/<customer_id>", methods=["POST"])
 def delete_customer(customer_id):
     if not session.get("admin_logged_in"):
         flash("Admin login required.", "error")
         return redirect(url_for("admin_login"))
 
-    conn = get_db_connection()
-    conn.execute("DELETE FROM customers WHERE id = ?", (customer_id,))
-    conn.commit()
-    conn.close()
+    db = firestore.client()  # ✅ Ensure Firestore client is initialized
 
-    flash("Customer deleted successfully.", "success")
+    # Delete the customer document from Firestore
+    db.collection("customers").document(str(customer_id)).delete()
+
+    flash("✅ Customer deleted successfully.", "success")
     return redirect(url_for("customers_info"))
 
 
@@ -890,18 +1216,25 @@ def track_order():
         flash("No Order ID provided.", "error")
         return redirect(url_for("profile"))
 
-    conn = get_db_connection()
-    order = conn.execute("SELECT * FROM orders WHERE order_code = ?", (order_code,)).fetchone()
-    if not order:
+    # 🔍 Query order with matching order_code
+    orders_ref = db.collection("orders").where("order_code", "==", order_code).limit(1).get()
+    if not orders_ref:
         flash("Order ID not found.", "error")
-        conn.close()
         return redirect(url_for("profile"))
 
-    items = conn.execute(
-        "SELECT oi.quantity, oi.price, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE order_id = ?",
-        (order["id"],)
-    ).fetchall()
-    conn.close()
+    order_doc = orders_ref[0]
+    order = order_doc.to_dict()
+    order["id"] = order_doc.id  # add ID if needed
+
+    # 🔍 Get items for this order
+    order_items_ref = db.collection("order_items").where("order_id", "==", order["id"]).stream()
+    items = []
+    for doc in order_items_ref:
+        item = doc.to_dict()
+        # Fetch product name
+        product = db.collection("products").document(str(item["product_id"])).get()
+        item["name"] = product.to_dict().get("name") if product.exists else "Unknown"
+        items.append(item)
 
     return render_template("track_order.html", order=order, items=items)
 

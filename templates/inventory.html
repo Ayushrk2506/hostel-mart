@@ -201,7 +201,7 @@
       <tbody>
         {% for item in inventory %}
         <tr>
-          <td>{{ item.id }}</td>
+          <td>{{ item.custom_id }}</td>
           <td>
             {% if item.image %}
               <img src="{{ url_for('static', filename=item.image) }}" alt="Product Image" width="60" style="border-radius: 8px; box-shadow: 0 0 10px #0ff;">
@@ -209,31 +209,31 @@
               N/A
             {% endif %}
           </td>
-          <td><input type="text" name="name_{{ item.id }}" value="{{ item.name }}"></td>
-          <td><textarea name="description_{{ item.id }}" oninput="this.style.height='auto'; this.style.height=this.scrollHeight + 'px';">{{ item.description }}</textarea></td>
+          <td><input type="text" name="name_{{ item.custom_id }}" value="{{ item.name }}"></td>
+          <td><textarea name="description_{{ item.custom_id }}" oninput="this.style.height='auto'; this.style.height=this.scrollHeight + 'px';">{{ item.description }}</textarea></td>
           <td>
             <div class="number-field-container">
-              <button type="button" onclick="decrement('mrp_{{ item.id }}')">−</button>
-              <input type="number" name="mrp_{{ item.id }}" id="mrp_{{ item.id }}" value="{{ item.mrp }}" step="1">
-              <button type="button" onclick="increment('mrp_{{ item.id }}')">+</button>
+              <button type="button" onclick="decrement('mrp_{{ item.custom_id }}')">−</button>
+              <input type="number" name="mrp_{{ item.custom_id }}" id="mrp_{{ item.custom_id }}" value="{{ item.mrp }}" step="1">
+              <button type="button" onclick="increment('mrp_{{ item.custom_id }}')">+</button>
             </div>
           </td>
           <td>
             <div class="number-field-container">
-              <button type="button" onclick="decrement('offer_price_{{ item.id }}')">−</button>
-              <input type="number" name="offer_price_{{ item.id }}" id="offer_price_{{ item.id }}" value="{{ item.offer_price }}" step="1">
-              <button type="button" onclick="increment('offer_price_{{ item.id }}')">+</button>
+              <button type="button" onclick="decrement('offer_price_{{ item.custom_id }}')">−</button>
+              <input type="number" name="offer_price_{{ item.custom_id }}" id="offer_price_{{ item.custom_id }}" value="{{ item.offer_price }}" step="1">
+              <button type="button" onclick="increment('offer_price_{{ item.custom_id }}')">+</button>
             </div>
           </td>
           <td>
             <div class="number-field-container">
-              <button type="button" onclick="decrement('quantity_{{ item.id }}')">−</button>
-              <input type="number" name="quantity_{{ item.id }}" id="quantity_{{ item.id }}" value="{{ item.quantity }}" min="0" step="1">
-              <button type="button" onclick="increment('quantity_{{ item.id }}')">+</button>
+              <button type="button" onclick="decrement('quantity_{{ item.custom_id }}')">−</button>
+              <input type="number" name="quantity_{{ item.custom_id }}" id="quantity_{{ item.custom_id }}" value="{{ item.quantity }}" min="0" step="1">
+              <button type="button" onclick="increment('quantity_{{ item.custom_id }}')">+</button>
             </div>
           </td>
           <td>
-            <a href="{{ url_for('delete_item', item_id=item.id) }}">
+            <a href="{{ url_for('delete_item', item_id=item.custom_id) }}">
               <button type="button" class="delete-btn">🗑️</button>
             </a>
           </td>

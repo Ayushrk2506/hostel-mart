@@ -21,7 +21,7 @@
             text-shadow: 0 0 10px #0ff;
             margin-bottom: 20px;
         }
-        input[type="text"], input[type="tel"] {
+        input[type="text"], input[type="tel"], input[type="email"] {
             width: 100%;
             padding: 12px;
             margin-top: 10px;
@@ -32,6 +32,13 @@
             color: #0ff;
             font-weight: bold;
             box-shadow: 0 0 10px #0ff inset;
+        }
+        input[readonly] {
+            background-color: #222;
+            color: #0ff;
+            border: 1px solid #0ff;
+            opacity: 0.8;
+            cursor: not-allowed;
         }
         .payment-options {
             display: flex;
@@ -159,9 +166,10 @@
     <form method="POST">
         <h2>📦 Confirm Your Order</h2>
 
-        <input type="text" name="name" placeholder="Your Name" required>
+        <input type="text" name="name" value="{{ session['user']['name'] }}" readonly>
+        <input type="email" name="email" value="{{ session['user']['email'] }}" readonly>
+        <input type="tel" name="mobile" value="{{ session['user']['mobile'] }}" readonly>
         <input type="text" name="room" placeholder="Room No." required>
-        <input type="tel" name="mobile" placeholder="Mobile No." pattern="[0-9]{10}" required>
 
         <div class="payment-options">
             <input type="radio" name="payment" value="cod" id="cod" checked>
